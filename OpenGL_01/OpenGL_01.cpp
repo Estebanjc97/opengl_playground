@@ -15,6 +15,8 @@ GLuint VAO, VBO, shader, uniformModel; //Unsigned GL int variable, can't contain
 bool direction = true;
 float triOffset = 0.0f, triMaxOffset = 0.5f, triIncrement = 0.005f;
 
+const float toRadiands = 3.14159265f / 180.0f;
+
 //Vertex Shader
 static const char* vertexShader = R"(
     #version 330 core
@@ -207,7 +209,7 @@ int main()
 
         if (abs(triOffset) >= triMaxOffset)
         {
-            direction = !direction;
+            //direction = !direction;
         }
 
 		//Clear window
@@ -217,7 +219,10 @@ int main()
 		glUseProgram(shader);
 
         glm::mat4 model(1.0f); //Indentity matrix by default
-        model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f)); //Mathematical operation
+        model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f)); //Mathematical operation translation
+        model = glm::rotate(model, 0 * toRadiands, glm::vec3(0.0f, 0.0f, 1.0f)); //Mathematical operation rotation
+        model = glm::scale(model, glm::vec3(2.0f,2.0f,1.0f)); //Mathematical operation rotation
+
 
         //glUniform1f(uniformModel, triOffset); //Plain way to move an object
 
