@@ -1,0 +1,4 @@
+﻿  OpenGL_01.cpp
+D:\Esteban Dev\Proyectos\C++\OpenGL_01\OpenGL_01\OpenGL_01.cpp(77,39): warning C4267: '=': conversión de 'size_t' a 'GLint'; posible pérdida de datos
+LINK : warning LNK4098: la biblioteca predeterminada'MSVCRT' entra en conflicto con otras bibliotecas; use la biblioteca /NODEFAULTLIB:biblioteca
+  OpenGL_01.vcxproj -> D:\Esteban Dev\Proyectos\C++\OpenGL_01\x64\Debug\OpenGL_01.exe
