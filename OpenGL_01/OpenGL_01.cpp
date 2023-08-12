@@ -8,9 +8,9 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
 
-const GLint WIDTH = 800, HEIGHT = 600; //Screen size
+const GLint WIDTH = 1024, HEIGHT = 720; //Screen size
 
-GLuint VAO, VBO, shader, uniformModel; //Unsigned GL int variable, can't contain negative values.
+GLuint VAO, VBO, IBO, shader, uniformModel, uniformProjection; //Unsigned GL int variable, can't contain negative values.
 
 bool direction = true;
 float triOffset = 0.0f, triMaxOffset = 0.5f, triIncrement = 0.005f;
@@ -24,10 +24,14 @@ static const char* vertexShader = R"(
     layout(location = 0) in vec3 position;
 
     uniform mat4 model;
+    uniform mat4 projection;
+
+    out vec4 vColor;
 
     void main() 
 	{
-        gl_Position = model * vec4(position, 1.0);
+        gl_Position = projection * model * vec4(position, 1.0);
+        vColor = vec4(clamp(position, 0.0f, 1.0f), 1.0f);
     }
 )";
 
@@ -35,27 +39,42 @@ static const char* vertexShader = R"(
 static const char* fragmentShader = R"(
     #version 330 core
 
-    out vec4 FragColor;
+    in vec4 vColor;
+
+    out vec4 fragColor;
 
     void main() {
-        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        fragColor = vColor;
     }
 )";
 
 // Función para crear un triángulo en un búfer de vértices
 void CreateTriangle()
 {
+    unsigned int indices[] =
+    {
+        0, 3, 1,
+        1, 3, 2,
+        2, 3, 0,
+        0, 1, 2
+    };
+
     // Coordenadas de los vértices del triángulo en el espacio 3D
     GLfloat vertices[] =
     {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f, 0.5f, 0.0f,
+        -1.0f, -1.0f, 0.0f,
+        0.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
     };
 
     // Crear y configurar un Vertex Array Object (VAO)
     glGenVertexArrays(1, &VAO);           // Generar un VAO
     glBindVertexArray(VAO);               // Vincular el VAO activo
+
+    glGenBuffers(1, &IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), &indices, GL_STATIC_DRAW);
 
     // Crear y configurar un Vertex Buffer Object (VBO)
     glGenBuffers(1, &VBO);                // Generar un VBO
@@ -67,6 +86,7 @@ void CreateTriangle()
     glEnableVertexAttribArray(0);                          // Habilitar el atributo en el VAO
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);    // Desvincular el VBO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);                // Desvincular el VAO
 }
 
@@ -137,6 +157,7 @@ void CompileShaders()
     }
 
     uniformModel = glGetUniformLocation(shader, "model");
+    uniformProjection = glGetUniformLocation(shader, "projection");
 }
 
 
@@ -186,11 +207,15 @@ int main()
 		return 1;
 	}
 
+    glEnable(GL_DEPTH_TEST);
+
 	//Setup viewport size
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
 	CreateTriangle();
 	CompileShaders();
+
+    glm::mat4 projection = glm::perspective(45.0f, (GLfloat)bufferWidth / (GLfloat)bufferWidth, 0.1f, 100.0f);
 
 	//Loop until window closed
 	while (!glfwWindowShouldClose(mainWindow))
@@ -214,24 +239,31 @@ int main()
 
 		//Clear window
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); //We can set any color that we want in RGB
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glUseProgram(shader);
 
         glm::mat4 model(1.0f); //Indentity matrix by default
-        model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f)); //Mathematical operation translation
-        model = glm::rotate(model, 0 * toRadiands, glm::vec3(0.0f, 0.0f, 1.0f)); //Mathematical operation rotation
-        model = glm::scale(model, glm::vec3(2.0f,2.0f,1.0f)); //Mathematical operation rotation
+        
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
+        model = glm::rotate(model, 90 * toRadiands * triOffset, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
+        model = glm::scale(model, glm::vec3(0.5f,0.5f,0.5f)); //Mathematical operation rotation
 
 
         //glUniform1f(uniformModel, triOffset); //Plain way to move an object
 
         //third argumetn - Transpose is flip the matrix around sort of diagonal axis
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 
 		glBindVertexArray(VAO);
 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+
+		//glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 		glBindVertexArray(0);
 

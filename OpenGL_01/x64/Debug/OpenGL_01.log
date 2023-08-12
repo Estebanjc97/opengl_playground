@@ -1,3 +1,3 @@
 ﻿  OpenGL_01.cpp
-D:\Esteban Dev\Proyectos\C++\OpenGL_01\OpenGL_01\OpenGL_01.cpp(82,39): warning C4267: '=': conversión de 'size_t' a 'GLint'; posible pérdida de datos
+D:\Esteban Dev\Proyectos\C++\OpenGL_01\OpenGL_01\OpenGL_01.cpp(102,39): warning C4267: '=': conversión de 'size_t' a 'GLint'; posible pérdida de datos
   OpenGL_01.vcxproj -> D:\Esteban Dev\Proyectos\C++\OpenGL_01\x64\Debug\OpenGL_01.exe
