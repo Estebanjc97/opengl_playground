@@ -7,49 +7,26 @@
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
+#include <vector>
+#include "Mesh.h"
+#include "Shader.h"
+#include "Window.h"
 
-const GLint WIDTH = 1024, HEIGHT = 720; //Screen size
-
-GLuint VAO, VBO, IBO, shader, uniformModel, uniformProjection; //Unsigned GL int variable, can't contain negative values.
-
-bool direction = true;
-float triOffset = 0.0f, triMaxOffset = 0.5f, triIncrement = 0.005f;
+Window mainWindow;
 
 const float toRadiands = 3.14159265f / 180.0f;
 
+std::vector<Mesh*> meshList;
+std::vector<Shader> shaderList;
+
 //Vertex Shader
-static const char* vertexShader = R"(
-    #version 330 core
-
-    layout(location = 0) in vec3 position;
-
-    uniform mat4 model;
-    uniform mat4 projection;
-
-    out vec4 vColor;
-
-    void main() 
-	{
-        gl_Position = projection * model * vec4(position, 1.0);
-        vColor = vec4(clamp(position, 0.0f, 1.0f), 1.0f);
-    }
-)";
+static const char* vertexShader = "Shaders/vertex.shader"; //{project_path}\OpenGL_01\Shaders
 
 //Fragment Shader
-static const char* fragmentShader = R"(
-    #version 330 core
-
-    in vec4 vColor;
-
-    out vec4 fragColor;
-
-    void main() {
-        fragColor = vColor;
-    }
-)";
+static const char* fragmentShader = "Shaders/fragment.shader";
 
 // Función para crear un triángulo en un búfer de vértices
-void CreateTriangle()
+void CreateObjects()
 {
     unsigned int indices[] =
     {
@@ -68,211 +45,73 @@ void CreateTriangle()
         0.0f, 1.0f, 0.0f,
     };
 
-    // Crear y configurar un Vertex Array Object (VAO)
-    glGenVertexArrays(1, &VAO);           // Generar un VAO
-    glBindVertexArray(VAO);               // Vincular el VAO activo
+    Mesh *obj1 = new Mesh();
+    obj1->CreateMesh(vertices, indices, sizeof(vertices), sizeof(indices));
+    meshList.push_back(obj1);
 
-    glGenBuffers(1, &IBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), &indices, GL_STATIC_DRAW);
-
-    // Crear y configurar un Vertex Buffer Object (VBO)
-    glGenBuffers(1, &VBO);                // Generar un VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);   // Vincular el VBO activo
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices, GL_STATIC_DRAW); // Cargar los datos en el VBO
-
-    // Configurar el atributo de vértice (posición) en el shader
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // Definir el atributo de posición
-    glEnableVertexAttribArray(0);                          // Habilitar el atributo en el VAO
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);    // Desvincular el VBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);                // Desvincular el VAO
+    Mesh* obj2 = new Mesh();
+    obj2->CreateMesh(vertices, indices, sizeof(vertices), sizeof(indices));
+    meshList.push_back(obj2);
 }
 
-// Función para agregar un shader a un programa
-void AddShader(GLuint program, const char* shaderCode, GLenum shaderType)
+void CreateShader() 
 {
-    GLuint _shader = glCreateShader(shaderType);
-
-    const GLchar* code[1];
-    code[0] = shaderCode;
-
-    GLint codeLength[1];
-    codeLength[0] = strlen(shaderCode);
-
-    glShaderSource(_shader, 1, code, codeLength); // Cargar el código del shader
-    glCompileShader(_shader);                     // Compilar el shader
-
-    GLint result = 0;
-    GLchar eLog[1024] = { 0 };
-
-    glGetShaderiv(_shader, GL_COMPILE_STATUS, &result); // Obtener el estado de compilación del shader
-    if (!result)
-    {
-        glGetShaderInfoLog(_shader, sizeof(eLog), NULL, eLog);
-        printf("Error compiling %d shader: '%s'\n", shaderType, eLog);
-        return;
-    }
-
-    glAttachShader(program, _shader); // Adjuntar el shader al programa
+    Shader *shader1 = new Shader();
+    shader1->CreateFromFiles(vertexShader, fragmentShader);
+    shaderList.push_back(*shader1);
 }
-
-// Función para compilar los shaders y crear el programa
-void CompileShaders()
-{
-    shader = glCreateProgram(); // Crear un programa de shaders
-
-    if (!shader)
-    {
-        printf("Error creating shader program!");
-        return;
-    }
-
-    // Agregar los shaders al programa
-    AddShader(shader, vertexShader, GL_VERTEX_SHADER);     // Agregar el shader de vértices
-    AddShader(shader, fragmentShader, GL_FRAGMENT_SHADER); // Agregar el shader de fragmentos
-
-    GLint result = 0;
-    GLchar eLog[1024] = { 0 };
-
-    glLinkProgram(shader); // Vincular los shaders en el programa
-    glGetProgramiv(shader, GL_LINK_STATUS, &result); // Obtener el estado de vinculación del programa
-
-    if (!result)
-    {
-        glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
-        printf("Error linking program: '%s'\n", eLog);
-        return;
-    }
-
-    glValidateProgram(shader); // Validar el programa
-    glGetProgramiv(shader, GL_VALIDATE_STATUS, &result); // Obtener el estado de validación del programa
-
-    if (!result)
-    {
-        glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
-        printf("Error validating program: '%s'\n", eLog);
-        return;
-    }
-
-    uniformModel = glGetUniformLocation(shader, "model");
-    uniformProjection = glGetUniformLocation(shader, "projection");
-}
-
 
 int main()
 {
 
-	//Initialise GLFW
-	if (!glfwInit())
-	{
-		printf("GLFW Initialisation failed.");
-		glfwTerminate();
-		return 1;
-	}
+    mainWindow = Window(800, 600);
+    mainWindow.Init();
 
-	//Setup glfw window properties
-	//Setting the OpenGL version
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //Make sure we are usen long term support code / Core profile = No backwards compatibility
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); //Allow forward compatibility
+    CreateObjects();
+    CreateShader();
 
-	GLFWwindow* mainWindow = glfwCreateWindow(WIDTH, HEIGHT, "XR SOFTWARE DEVELOPER!", NULL, NULL);
-	if (!mainWindow)
-	{
-		printf("GLFW window creation failed!");
-		glfwTerminate();
-		return 1;
-	}
+    GLuint uniformModel = 0, uniformProjection = 0;
 
-	//Get buffer size information
-	int bufferWidth, bufferHeight;
-	glfwGetFramebufferSize(mainWindow, &bufferWidth, &bufferHeight);
-	
-
-	//Set context for GLEW to use / I will tie all that is gonna be drawn is gonna be in the mainWindow
-	glfwMakeContextCurrent(mainWindow);
-
-	//Allow modern extension feature  
-	glewExperimental = GL_TRUE;
-
-	//Initializing GLEW
-	if (glewInit() != GLEW_OK)
-	{
-		printf("GLEW initialisation failed!");
-		glfwDestroyWindow(mainWindow);
-		glfwTerminate();
-		return 1;
-	}
-
-    glEnable(GL_DEPTH_TEST);
-
-	//Setup viewport size
-	glViewport(0, 0, bufferWidth, bufferHeight);
-
-	CreateTriangle();
-	CompileShaders();
-
-    glm::mat4 projection = glm::perspective(45.0f, (GLfloat)bufferWidth / (GLfloat)bufferWidth, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(45.0f, (GLfloat)mainWindow.getBufferWidth() / (GLfloat)mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
 	//Loop until window closed
-	while (!glfwWindowShouldClose(mainWindow))
+	while (!mainWindow.getShouldClose())
 	{
 		//Get and handle user input events
 		glfwPollEvents(); //checking any input events / keyboard, mouse...
-
-        if (direction)
-        {
-            triOffset += triIncrement;
-        }
-        else
-        {
-            triOffset -= triIncrement;
-        }
-
-        if (abs(triOffset) >= triMaxOffset)
-        {
-            //direction = !direction;
-        }
 
 		//Clear window
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); //We can set any color that we want in RGB
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glUseProgram(shader);
+        shaderList[0].UseShader();
+
+        uniformModel = shaderList[0].GetModelLocation();
+        uniformProjection = shaderList[0].GetProjectionLocation();
 
         glm::mat4 model(1.0f); //Indentity matrix by default
         
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
-        model = glm::rotate(model, 90 * toRadiands * triOffset, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
-        model = glm::scale(model, glm::vec3(0.5f,0.5f,0.5f)); //Mathematical operation rotation
-
-
-        //glUniform1f(uniformModel, triOffset); //Plain way to move an object
-
-        //third argumetn - Transpose is flip the matrix around sort of diagonal axis
+        model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
+        model = glm::scale(model, glm::vec3(0.5f,0.5f,0.5f)); //Mathematical operation scale
+        //third argument - Transpose is flip the matrix around sort of diagonal axis
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+        meshList[0]->RenderMesh();
 
-		glBindVertexArray(VAO);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
+        model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
+        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); //Mathematical operation scale
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
+        meshList[1]->RenderMesh();
 
-		//glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+        glUseProgram(0);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-		glBindVertexArray(0);
-
-		glUseProgram(0);
-
-		glfwSwapBuffers(mainWindow); //Need EXPLANATION
+        mainWindow.swapBuffers(); //Need EXPLANATION
 
 	}
-
 
 	return 0;
 }
