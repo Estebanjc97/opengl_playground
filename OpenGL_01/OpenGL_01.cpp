@@ -11,10 +11,13 @@
 #include "Mesh.h"
 #include "Shader.h"
 #include "Window.h"
+#include "Camera.h"
 
 Window mainWindow;
+Camera camera;
 
-const float toRadiands = 3.14159265f / 180.0f;
+GLfloat deltaTime = 0.0f;
+GLfloat lastTime = 0.0f;
 
 std::vector<Mesh*> meshList;
 std::vector<Shader> shaderList;
@@ -70,45 +73,55 @@ int main()
     CreateObjects();
     CreateShader();
 
-    GLuint uniformModel = 0, uniformProjection = 0;
+    camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
+
+    GLuint uniformModel = 0, uniformProjection = 0, uniformView = 0;
 
     glm::mat4 projection = glm::perspective(45.0f, (GLfloat)mainWindow.getBufferWidth() / (GLfloat)mainWindow.getBufferHeight(), 0.1f, 100.0f);
 
 	//Loop until window closed
 	while (!mainWindow.getShouldClose())
 	{
+        GLfloat now = glfwGetTime();
+        deltaTime = now - lastTime;
+        lastTime = now;
+
 		//Get and handle user input events
 		glfwPollEvents(); //checking any input events / keyboard, mouse...
 
+        camera.keyControl(mainWindow.getKeys(), deltaTime);
+        camera.mouseControl(mainWindow.getMouseButtons(), mainWindow.GetXChange(), mainWindow.GetYChange());
+
 		//Clear window
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); //We can set any color that we want in RGB
+		glClearColor(0.86f, 0.86f, 0.86f, 0.86f); //We can set any color that we want in RGB
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shaderList[0].UseShader();
 
         uniformModel = shaderList[0].GetModelLocation();
         uniformProjection = shaderList[0].GetProjectionLocation();
+        uniformView = shaderList[0].GetViewLocation();
 
         glm::mat4 model(1.0f); //Indentity matrix by default
         
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
-        model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
+        //model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
         model = glm::scale(model, glm::vec3(0.5f,0.5f,0.5f)); //Mathematical operation scale
         //third argument - Transpose is flip the matrix around sort of diagonal axis
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.CalculateViewMatrix()));
         meshList[0]->RenderMesh();
 
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
-        model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
-        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); //Mathematical operation scale
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
-        meshList[1]->RenderMesh();
+        //model = glm::mat4(1.0f);
+        //model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); //Mathematical operation translation
+        //model = glm::rotate(model, 90 * toRadiands, glm::vec3(0.0f, 1.0f, 0.0f)); //Mathematical operation rotation
+        //model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f)); //Mathematical operation scale
+        //glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //Matricial way to apply transformations
+        //meshList[1]->RenderMesh();
 
-        glUseProgram(0);
-
+        //glUseProgram(0);
         mainWindow.swapBuffers(); //Need EXPLANATION
 
 	}
